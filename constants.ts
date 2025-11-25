@@ -1,5 +1,5 @@
 
-import { Gallery, ContactInfo, SiteContent, ContactMessage, ServiceItem } from './types';
+import { Gallery, ContactInfo, SiteContent, ContactMessage, ServiceItem, User, UserRole } from './types';
 
 export const TRANSLATIONS = {
   en: {
@@ -30,7 +30,14 @@ export const TRANSLATIONS = {
     services_title: "Our Services",
     services_subtitle: "Professional creative solutions tailored for you.",
     services_click_note: "Click on any package below to make an inquiry.",
-    footer_rights: "All Rights Reserved."
+    footer_rights: "All Rights Reserved.",
+    tab_public: "Public Gallery",
+    tab_private: "Private Access",
+    private_locked_title: "Restricted Access",
+    private_locked_desc: "Please enter your access code to view private collections.",
+    private_input_placeholder: "Enter Access Code",
+    private_btn_unlock: "Unlock Gallery",
+    download_warning: "Preview Mode. Use the download button for full quality.",
   },
   ms: {
     nav_faq: "Soalan Lazim",
@@ -60,9 +67,31 @@ export const TRANSLATIONS = {
     services_title: "Perkhidmatan Kami",
     services_subtitle: "Solusi kreatif profesional khusus untuk anda.",
     services_click_note: "Klik pada mana-mana pakej di bawah untuk bertanya.",
-    footer_rights: "Hak Cipta Terpelihara."
+    footer_rights: "Hak Cipta Terpelihara.",
+    tab_public: "Galeri Awam",
+    tab_private: "Akses Peribadi",
+    private_locked_title: "Akses Terhad",
+    private_locked_desc: "Sila masukkan kod akses anda untuk melihat koleksi peribadi.",
+    private_input_placeholder: "Masukkan Kod Akses",
+    private_btn_unlock: "Buka Galeri",
+    download_warning: "Mod Pratonton. Gunakan butang muat turun untuk kualiti penuh.",
   }
 };
+
+export const INITIAL_USERS: User[] = [
+  {
+    id: 'admin1',
+    label: 'Administrator',
+    password: 'admin123', // Hardcoded for demo
+    role: UserRole.ADMIN
+  },
+  {
+    id: 'vip1',
+    label: 'VIP Guest 2024',
+    password: 'vip2024',
+    role: UserRole.PRIVATE_VISITOR
+  }
+];
 
 export const INITIAL_CONTACT_INFO: ContactInfo = {
   socials: {
@@ -134,6 +163,7 @@ export const INITIAL_GALLERIES: Gallery[] = [
     description: 'Exploring Kuala Lumpur after midnight.',
     coverUrl: 'https://picsum.photos/1200/800?random=10',
     dateCreated: '2023-11-01',
+    isPrivate: false,
     galleryDownloadUrl: 'https://drive.google.com',
     photos: [
       {
@@ -149,19 +179,20 @@ export const INITIAL_GALLERIES: Gallery[] = [
   },
   {
     id: 'g2',
-    title: 'Rainforest Mists',
-    description: 'The calm of Belum Rainforest.',
+    title: 'Private Wedding: Sarah & Ali',
+    description: 'Exclusive shots from the reception.',
     coverUrl: 'https://picsum.photos/1200/900?random=5',
     dateCreated: '2023-12-15',
+    isPrivate: true,
     galleryDownloadUrl: 'https://dropbox.com',
     photos: [
       {
         id: '5',
         url: 'https://picsum.photos/1200/900?random=5',
-        title: 'Silent Canopy',
-        description: 'Morning mist over the trees.',
+        title: 'The Vows',
+        description: 'A beautiful moment.',
         dateUploaded: '2023-12-15',
-        tags: ['nature', 'malaysia'],
+        tags: ['wedding', 'private'],
       }
     ]
   }

@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { Photo, Gallery } from '../types';
-import { Upload, X, Link as LinkIcon, FolderPlus, Image as ImageIcon, Check } from 'lucide-react';
+import { Upload, X, Link as LinkIcon, FolderPlus, Image as ImageIcon, Check, Lock, Globe } from 'lucide-react';
 
 interface AdminPanelProps {
   currentGalleryId: string | null;
@@ -20,6 +21,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentGalleryId, onUploadPhoto
   
   // Gallery Specific
   const [galleryDl, setGalleryDl] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
   
   // Photo Specific
   const [tags, setTags] = useState('');
@@ -54,6 +57,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentGalleryId, onUploadPhoto
         coverUrl: displayUrl,
         dateCreated: new Date().toISOString().split('T')[0],
         galleryDownloadUrl: galleryDl,
+        isPrivate: isPrivate,
+        videoUrl: videoUrl,
         photos: []
       };
       onCreateGallery(newGallery);
@@ -146,6 +151,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentGalleryId, onUploadPhoto
                 onChange={e => setLinkUrl(e.target.value)}
                 className="w-full bg-black border border-zinc-800 rounded px-3 py-3 text-sm text-white focus:border-zinc-600 outline-none"
               />
+            )}
+
+            {/* Gallery Settings (Privacy & Video) */}
+            {isGalleryMode && (
+              <div className="bg-zinc-800/30 rounded-lg p-4 space-y-4 border border-zinc-800">
+                <div>
+                   <label className="block text-xs uppercase text-zinc-500 mb-2 font-semibold">Visibility</label>
+                   <div className="flex gap-2">
+                     <button
+                       type="button"
+                       onClick={() => setIsPrivate(false)}
+                       className={`flex-1 py-2 rounded text-xs font-medium border ${!isPrivate ? 'bg-zinc-100 border-white text-black' : 'border-zinc-700 text-zinc-400'}`}
+                     >
+                       <div className="flex items-center justify-center gap-2">
+                         <Globe size={14} /> Public
+                       </div>
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => setIsPrivate(true)}
+                       className={`flex-1 py-2 rounded text-xs font-medium border ${isPrivate ? 'bg-zinc-100 border-white text-black' : 'border-zinc-700 text-zinc-400'}`}
+                     >
+                        <div className="flex items-center justify-center gap-2">
+                         <Lock size={14} /> Private
+                       </div>
+                     </button>
+                   </div>
+                </div>
+                
+                <div>
+                  <label className="block text-xs uppercase text-zinc-500 mb-2 font-semibold">Video URL (Optional)</label>
+                  <input
+                    type="url"
+                    placeholder="https://... (YouTube/MP4)"
+                    value={videoUrl}
+                    onChange={e => setVideoUrl(e.target.value)}
+                    className="w-full bg-black border border-zinc-800 rounded px-3 py-2 text-sm text-white focus:border-zinc-600 outline-none"
+                  />
+                  <p className="text-[10px] text-zinc-600 mt-1">Include one main video for this gallery.</p>
+                </div>
+              </div>
             )}
 
             {/* Metadata Fields */}

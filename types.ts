@@ -1,10 +1,18 @@
 
 export enum UserRole {
   ADMIN = 'ADMIN',
-  VISITOR = 'VISITOR'
+  VISITOR = 'VISITOR', // Standard visitor (public)
+  PRIVATE_VISITOR = 'PRIVATE_VISITOR' // Visitor with code access
 }
 
 export type Language = 'en' | 'ms';
+
+export interface User {
+  id: string;
+  label: string; // e.g. "Admin", "Wedding Guest", "Client A"
+  password?: string; // The Access Code
+  role: UserRole;
+}
 
 export interface Photo {
   id: string;
@@ -25,6 +33,8 @@ export interface Gallery {
   dateCreated: string;
   galleryDownloadUrl?: string; // Link to download full album (e.g. Drive)
   photos: Photo[];
+  isPrivate: boolean; // VISIBILITY TOGGLE
+  videoUrl?: string; // Optional main video
 }
 
 export interface ChatMessage {

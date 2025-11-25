@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
-import { INITIAL_GALLERIES, INITIAL_CONTACT_INFO, INITIAL_SITE_CONTENT, INITIAL_MESSAGES, TRANSLATIONS } from './constants';
-import { Photo, Gallery, UserRole, SiteContent, ContactInfo, ContactMessage, ContactReason, Language, ServiceItem } from './types';
+import React, { useState, useEffect } from 'react';
+import { INITIAL_GALLERIES, INITIAL_CONTACT_INFO, INITIAL_SITE_CONTENT, INITIAL_MESSAGES, INITIAL_USERS, TRANSLATIONS } from './constants';
+import { Photo, Gallery, UserRole, SiteContent, ContactInfo, ContactMessage, ContactReason, Language, ServiceItem, User } from './types';
 import PhotoModal from './components/PhotoModal';
 import ChatWidget from './components/ChatWidget';
 import AdminPanel from './components/AdminPanel';
-import AdminSettings from './components/AdminSettings';
-import { Lock, LogOut, Linkedin, Globe, Mail, ChevronLeft, User, ToggleRight, ToggleLeft, Trash2, Plus, X, Settings, Download, Send, CheckCircle2, Languages, Camera, Video, PenTool, Calendar, ArrowRight } from 'lucide-react';
+import AdminDashboard from './components/AdminSettings'; // Now imports the Dashboard logic
+import { Lock, LogOut, Linkedin, Globe, Mail, ChevronLeft, User as UserIcon, Trash2, Plus, X, Settings, Download, Send, CheckCircle2, Languages, Camera, Video, PenTool, Calendar, ArrowRight, ShieldCheck, Play, Unlock, LayoutDashboard } from 'lucide-react';
 
 const App: React.FC = () => {
   // Data State
@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [siteContent, setSiteContent] = useState<SiteContent>(INITIAL_SITE_CONTENT);
   const [contactInfo, setContactInfo] = useState<ContactInfo>(INITIAL_CONTACT_INFO);
   const [messages, setMessages] = useState<ContactMessage[]>(INITIAL_MESSAGES);
+  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   
   // Navigation State
   const [selectedGalleryId, setSelectedGalleryId] = useState<string | null>(null);
@@ -21,14 +22,15 @@ const App: React.FC = () => {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showFAQModal, setShowFAQModal] = useState(false);
   const [showServicesModal, setShowServicesModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   
   // User/Admin/Lang State
-  const [userRole, setUserRole] = useState<UserRole>(UserRole.VISITOR);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdminMode, setIsAdminMode] = useState(false); 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [showAdminSettings, setShowAdminSettings] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
+  const [loginInput, setLoginInput] = useState(''); // Serves as password or access code
   const [language, setLanguage] = useState<Language>('en');
 
   // Contact Form State
@@ -44,26 +46,55 @@ const App: React.FC = () => {
   // Derived State
   const currentGallery = galleries.find(g => g.id === selectedGalleryId);
   const t = (key: keyof typeof TRANSLATIONS['en']) => TRANSLATIONS[language][key];
+  
+  const isPrivateUnlocked = currentUser !== null && (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PRIVATE_VISITOR);
+
+  // --- Effects ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (code) {
+      const matchedUser = users.find(u => u.password === code);
+      if (matchedUser) {
+        setCurrentUser(matchedUser);
+        setActiveTab('PRIVATE');
+        if (matchedUser.role === UserRole.ADMIN) {
+          setIsAdminMode(true);
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, [users]);
 
   // --- Actions ---
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleAccessCodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'admin123') {
-      setUserRole(UserRole.ADMIN);
-      setIsAdminMode(true);
+    const matchedUser = users.find(u => u.password === loginInput);
+    
+    if (matchedUser) {
+      setCurrentUser(matchedUser);
+      if (matchedUser.role === UserRole.ADMIN) {
+        setIsAdminMode(true); // Default to admin mode on login
+      } else {
+        setIsAdminMode(false); // Guest login implies visitor view
+      }
       setShowLoginModal(false);
-      setPasswordInput('');
+      setLoginInput('');
+      if (matchedUser.role !== UserRole.ADMIN) {
+        setActiveTab('PRIVATE');
+      }
     } else {
-      alert('Incorrect password');
+      alert("Invalid Access Code");
     }
   };
 
   const handleLogout = () => {
-    setUserRole(UserRole.VISITOR);
+    setCurrentUser(null);
     setIsAdminMode(false);
     setShowAdminPanel(false);
-    setShowAdminSettings(false);
+    setShowAdminDashboard(false);
+    setActiveTab('PUBLIC');
   };
 
   const handleCreateGallery = (newGallery: Gallery) => {
@@ -80,6 +111,10 @@ const App: React.FC = () => {
   const handleAddPhoto = (galleryId: string, newPhoto: Photo) => {
     setGalleries(galleries.map(g => {
       if (g.id === galleryId) {
+        if (g.photos.length >= 20) {
+           alert("Gallery limit reached (20 photos). Please remove some to add more.");
+           return g;
+        }
         return { ...g, photos: [newPhoto, ...g.photos] };
       }
       return g;
@@ -122,8 +157,6 @@ const App: React.FC = () => {
     }, 2000);
   };
 
-  // --- Render Helpers ---
-
   const getServiceIcon = (type: string) => {
     switch(type) {
       case 'CAMERA': return <Camera size={32} />;
@@ -134,63 +167,137 @@ const App: React.FC = () => {
     }
   };
 
-  // 1. Home View
-  const renderHome = () => (
-    <>
-      <header className="mb-12 md:mb-16 flex flex-col md:flex-row justify-between items-end gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl md:text-6xl font-light mb-6 leading-tight">
-            {siteContent.heroTitle} <br/> <span className="text-zinc-500">{siteContent.heroSubtitle}</span>
-          </h1>
-          <p className="text-zinc-400 leading-relaxed text-sm md:text-base border-l-2 border-zinc-800 pl-4">
-            {contactInfo.bio}
-          </p>
-        </div>
-        
-        {isAdminMode && (
-          <button 
-            onClick={() => setShowAdminPanel(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-zinc-100 text-black rounded hover:bg-white transition-colors text-sm font-medium"
-          >
-            <Plus size={16} /> {t('hero_new_collection')}
-          </button>
-        )}
-      </header>
+  // --- Render Helpers ---
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {galleries.map(gallery => (
-          <div 
-            key={gallery.id}
-            onClick={() => setSelectedGalleryId(gallery.id)}
-            className="group relative aspect-video md:aspect-[4/3] cursor-pointer overflow-hidden bg-zinc-900 rounded-sm"
-          >
-            <img 
-              src={gallery.coverUrl} 
-              alt={gallery.title}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100"
-            />
-            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
-            
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
-              <h3 className="text-xl text-white font-light tracking-wide">{gallery.title}</h3>
-              <p className="text-zinc-400 text-xs mt-1 uppercase tracking-wider">{gallery.photos.length} Photos</p>
+  const renderHome = () => {
+    let displayedGalleries = galleries;
+    
+    if (activeTab === 'PUBLIC') {
+      displayedGalleries = galleries.filter(g => !g.isPrivate);
+      // In Admin Mode, show private ones too but maybe dimmed? For now, stick to tab logic for cleanliness.
+      // Actually, if Admin is in PUBLIC tab, they should see PUBLIC galleries.
+    } else {
+      if (isPrivateUnlocked) {
+         displayedGalleries = galleries.filter(g => g.isPrivate);
+      } else {
+         displayedGalleries = []; 
+      }
+    }
+
+    return (
+      <>
+        <header className="mb-12 md:mb-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-8">
+            <div className="max-w-2xl">
+              <h1 className="text-4xl md:text-6xl font-light mb-6 leading-tight">
+                {siteContent.heroTitle} <br/> <span className="text-zinc-500">{siteContent.heroSubtitle}</span>
+              </h1>
+              <p className="text-zinc-400 leading-relaxed text-sm md:text-base border-l-2 border-zinc-800 pl-4">
+                {contactInfo.bio}
+              </p>
             </div>
-
+            
             {isAdminMode && (
               <button 
-                onClick={(e) => handleDeleteGallery(e, gallery.id)}
-                className="absolute top-4 right-4 p-2 bg-red-900/80 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                onClick={() => setShowAdminPanel(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-zinc-100 text-black rounded hover:bg-white transition-colors text-sm font-medium"
               >
-                <Trash2 size={16} />
+                <Plus size={16} /> {t('hero_new_collection')}
               </button>
             )}
           </div>
-        ))}
-      </div>
-    </>
-  );
 
-  // 2. Gallery View
+          <div className="flex gap-4 border-b border-zinc-900">
+             <button 
+               onClick={() => setActiveTab('PUBLIC')}
+               className={`pb-4 px-2 text-sm font-medium transition-colors relative ${activeTab === 'PUBLIC' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+             >
+               {t('tab_public')}
+               {activeTab === 'PUBLIC' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white" />}
+             </button>
+             <button 
+               onClick={() => setActiveTab('PRIVATE')}
+               className={`pb-4 px-2 text-sm font-medium transition-colors relative ${activeTab === 'PRIVATE' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+             >
+               {t('tab_private')}
+               {activeTab === 'PRIVATE' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white" />}
+             </button>
+          </div>
+        </header>
+
+        {activeTab === 'PRIVATE' && !isPrivateUnlocked && (
+          <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
+             <div className="bg-zinc-900/50 p-8 rounded-2xl border border-zinc-800 flex flex-col items-center max-w-sm w-full">
+                <div className="w-16 h-16 bg-zinc-950 rounded-full flex items-center justify-center mb-6 border border-zinc-800">
+                  <Lock size={32} className="text-zinc-500" />
+                </div>
+                <h3 className="text-xl font-light text-white mb-2">{t('private_locked_title')}</h3>
+                <p className="text-center text-sm text-zinc-400 mb-6">{t('private_locked_desc')}</p>
+                <form onSubmit={handleAccessCodeSubmit} className="w-full space-y-4">
+                  <input 
+                    type="password" 
+                    placeholder={t('private_input_placeholder')}
+                    value={loginInput}
+                    onChange={e => setLoginInput(e.target.value)}
+                    className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-center text-white focus:border-zinc-500 outline-none tracking-widest"
+                  />
+                  <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2">
+                    <Unlock size={16} /> {t('private_btn_unlock')}
+                  </button>
+                </form>
+             </div>
+          </div>
+        )}
+
+        {(activeTab === 'PUBLIC' || isPrivateUnlocked) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+            {displayedGalleries.length === 0 ? (
+               <div className="col-span-full py-20 text-center text-zinc-600 border border-zinc-900 border-dashed rounded">
+                 No collections found in this section.
+               </div>
+            ) : (
+              displayedGalleries.map(gallery => (
+                <div 
+                  key={gallery.id}
+                  onClick={() => setSelectedGalleryId(gallery.id)}
+                  className="group relative aspect-video md:aspect-[4/3] cursor-pointer overflow-hidden bg-zinc-900 rounded-sm"
+                >
+                  <img 
+                    src={gallery.coverUrl} 
+                    alt={gallery.title}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-100"
+                  />
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
+                  
+                  {gallery.isPrivate && (
+                    <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2 border border-white/10">
+                      <Lock size={12} className="text-zinc-300" />
+                      <span className="text-[10px] uppercase font-bold text-zinc-300 tracking-wider">Private</span>
+                    </div>
+                  )}
+
+                  <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
+                    <h3 className="text-xl text-white font-light tracking-wide">{gallery.title}</h3>
+                    <p className="text-zinc-400 text-xs mt-1 uppercase tracking-wider">{gallery.photos.length} Photos</p>
+                  </div>
+
+                  {isAdminMode && (
+                    <button 
+                      onClick={(e) => handleDeleteGallery(e, gallery.id)}
+                      className="absolute top-4 right-4 p-2 bg-red-900/80 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </>
+    );
+  };
+
   const renderGallery = () => {
     if (!currentGallery) return null;
 
@@ -206,6 +313,13 @@ const App: React.FC = () => {
               >
                 <ChevronLeft size={16} /> Kars Gallery App
               </button>
+              <div className="flex items-center gap-4 mb-2">
+                 {currentGallery.isPrivate && (
+                   <span className="px-3 py-1 bg-zinc-800 rounded-full text-[10px] uppercase font-bold text-zinc-400 border border-zinc-700 flex items-center gap-1">
+                     <Lock size={12} /> Private Collection
+                   </span>
+                 )}
+              </div>
               <h1 className="text-4xl md:text-7xl font-light mb-4 text-white tracking-tight">{currentGallery.title}</h1>
               <div className="flex flex-col md:flex-row gap-6 md:items-end justify-between">
                 <p className="text-zinc-300 max-w-xl text-lg leading-relaxed">{currentGallery.description}</p>
@@ -224,6 +338,27 @@ const App: React.FC = () => {
               </div>
            </div>
         </div>
+
+        <div className="mb-8 flex justify-center">
+          <div className="bg-yellow-900/20 border border-yellow-900/50 px-6 py-3 rounded-full flex items-center gap-2 text-yellow-500/80 text-xs uppercase tracking-wider font-medium">
+             <ShieldCheck size={14} /> {t('download_warning')}
+          </div>
+        </div>
+
+        {currentGallery.videoUrl && (
+          <div className="mb-12 aspect-video w-full max-w-5xl mx-auto bg-black rounded-lg overflow-hidden border border-zinc-800 relative group">
+             <div className="absolute inset-0 flex items-center justify-center">
+                <Play size={48} className="text-zinc-700 opacity-50" />
+             </div>
+             <iframe 
+               src={currentGallery.videoUrl} 
+               title="Gallery Video" 
+               className="absolute inset-0 w-full h-full" 
+               allowFullScreen
+             />
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-4 md:px-0 pb-20">
           {currentGallery.photos.map(photo => (
             <div key={photo.id} onClick={() => setSelectedPhoto(photo)} className="group relative aspect-[3/4] bg-zinc-900 cursor-pointer overflow-hidden rounded-sm">
@@ -258,11 +393,27 @@ const App: React.FC = () => {
             <div className="h-2 w-2 bg-black rounded-full" />
           </div>
           <span className="font-semibold tracking-widest text-lg uppercase hidden md:inline">Kars Gallery App</span>
-          <span className="font-semibold tracking-widest text-lg uppercase md:hidden">Kars</span>
         </div>
 
         <div className="flex items-center gap-6">
-          {/* Lang Toggle */}
+          {/* Header Role Toggle (Only visible if Admin) */}
+          {currentUser?.role === UserRole.ADMIN && (
+            <div className="hidden md:flex bg-zinc-900 rounded-full border border-zinc-800 p-1">
+              <button 
+                onClick={() => setIsAdminMode(true)}
+                className={`px-4 py-1.5 text-xs font-bold rounded-full transition-colors ${isAdminMode ? 'bg-zinc-100 text-black' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Admin Mode
+              </button>
+              <button 
+                onClick={() => setIsAdminMode(false)}
+                className={`px-4 py-1.5 text-xs font-bold rounded-full transition-colors ${!isAdminMode ? 'bg-zinc-100 text-black' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Visitor View
+              </button>
+            </div>
+          )}
+
           <button 
              onClick={() => setLanguage(language === 'en' ? 'ms' : 'en')}
              className="text-zinc-400 hover:text-white text-xs font-bold border border-zinc-700 rounded px-2 py-1 flex items-center gap-1 transition-colors"
@@ -274,30 +425,26 @@ const App: React.FC = () => {
           <button onClick={() => setShowFAQModal(true)} className="text-zinc-400 hover:text-white transition-colors text-sm hidden md:block">{t('nav_faq')}</button>
           <button onClick={() => setShowAboutModal(true)} className="text-zinc-400 hover:text-white transition-colors text-sm">{t('nav_app_info')}</button>
 
-          {userRole === UserRole.ADMIN ? (
+          {currentUser ? (
             <div className="flex items-center gap-4 pl-4 border-l border-zinc-800">
-              <button onClick={() => setShowAdminSettings(true)} className="text-zinc-500 hover:text-white transition-colors" title={t('nav_settings')}>
-                <Settings size={20} />
-              </button>
-              <button onClick={() => setIsAdminMode(!isAdminMode)} className={`flex items-center gap-2 text-sm transition-colors ${isAdminMode ? 'text-white' : 'text-zinc-500'}`}>
-                {isAdminMode ? <ToggleRight size={20} className="text-white" /> : <ToggleLeft size={20} />}
-                <span className="hidden md:inline">{isAdminMode ? t('nav_admin') : t('nav_visitor')}</span>
-              </button>
-              <button onClick={handleLogout} className="text-zinc-500 hover:text-red-400 transition-colors"><LogOut size={18} /></button>
+               {isAdminMode && (
+                  <button onClick={() => setShowAdminDashboard(true)} className="text-zinc-300 hover:text-white transition-colors flex items-center gap-2" title="Dashboard">
+                    <LayoutDashboard size={20} />
+                  </button>
+               )}
+               <button onClick={handleLogout} className="text-zinc-500 hover:text-red-400 transition-colors"><LogOut size={18} /></button>
             </div>
           ) : (
-            <button onClick={() => setShowLoginModal(true)} className="text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-2 text-xs uppercase tracking-wider">
-              <Lock size={14} />
+            <button onClick={() => setShowLoginModal(true)} className="text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-2 text-xs uppercase tracking-wider px-3 py-1.5 border border-zinc-800 rounded-full hover:bg-zinc-900">
+              <UserIcon size={14} /> {t('nav_login')}
             </button>
           )}
         </div>
       </nav>
 
-      {/* Main Content */}
       <main className="pt-24 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto">
         {selectedGalleryId ? renderGallery() : renderHome()}
 
-        {/* Footer */}
         <footer className="mt-32 pt-12 border-t border-zinc-900 flex flex-col items-center justify-center gap-6 text-zinc-500">
           <div className="flex gap-8">
             <a href={`mailto:${contactInfo.socials.email}`} className="hover:text-white transition-colors"><Mail size={20} /></a>
@@ -309,12 +456,9 @@ const App: React.FC = () => {
       </main>
 
       {/* --- Modals --- */}
-
-      {/* Pricing / Services Modal */}
       {showServicesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in zoom-in-95 duration-300">
           <button onClick={() => setShowServicesModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white z-50"><X size={32} /></button>
-          
           <div className="max-w-6xl w-full h-[85vh] flex flex-col">
             <div className="text-center mb-8">
               <h2 className="text-4xl md:text-6xl font-semibold text-white tracking-tight mb-4">{t('services_title')}</h2>
@@ -324,21 +468,15 @@ const App: React.FC = () => {
                 {t('services_click_note')}
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 flex-1 overflow-y-auto px-4 pb-12">
-              {siteContent.services.map((service, idx) => (
-                 <div 
-                   key={service.id} 
-                   onClick={() => handleServiceClick(service)}
-                   className="group relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 flex flex-col hover:bg-zinc-800 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-zinc-700 cursor-pointer"
-                 >
+              {siteContent.services.map((service) => (
+                 <div key={service.id} onClick={() => handleServiceClick(service)} className="group relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 flex flex-col hover:bg-zinc-800 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-zinc-700 cursor-pointer">
                     <div className="mb-6 text-zinc-400 group-hover:text-white transition-colors flex justify-between items-start">
                       {getServiceIcon(service.icon)}
                       <ArrowRight size={20} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
                     </div>
                     <h3 className="text-2xl font-semibold text-white mb-2">{service.title}</h3>
                     <p className="text-sm text-zinc-400 mb-8 leading-relaxed">{service.description}</p>
-                    
                     <ul className="space-y-3 mb-8 flex-1">
                       {service.features.map((feature, i) => (
                         <li key={i} className="flex items-center gap-2 text-sm text-zinc-300">
@@ -346,7 +484,6 @@ const App: React.FC = () => {
                         </li>
                       ))}
                     </ul>
-
                     <div className="mt-auto pt-6 border-t border-zinc-700/50">
                        <p className="text-xs uppercase text-zinc-500 font-semibold mb-1">Starting from</p>
                        <p className="text-2xl text-white font-mono">{service.priceRange}</p>
@@ -354,14 +491,11 @@ const App: React.FC = () => {
                  </div>
               ))}
             </div>
-            
-            {/* Removed bottom button as requested */}
             <div className="h-8"></div> 
           </div>
         </div>
       )}
 
-      {/* FAQ Modal */}
       {showFAQModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-zinc-900 max-w-2xl w-full max-h-[80vh] flex flex-col border border-zinc-800 rounded-lg shadow-2xl relative">
@@ -379,7 +513,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* About Modal */}
       {showAboutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-300 overflow-y-auto">
            <div className="bg-zinc-900 max-w-4xl w-full border border-zinc-800 rounded-lg shadow-2xl relative flex flex-col md:flex-row overflow-hidden my-8">
@@ -422,25 +555,23 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Login Modal */}
       {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 p-8 rounded-lg border border-zinc-800 w-full max-w-sm relative shadow-2xl">
             <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-zinc-500 hover:text-white"><X size={20} /></button>
-            <div className="text-center mb-6"><User size={32} className="mx-auto text-zinc-600 mb-4" /><h2 className="text-xl font-light">Artist Access</h2></div>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <input type="password" placeholder="Password (try: admin123)" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-white focus:border-zinc-500 outline-none text-center tracking-widest transition-colors" autoFocus />
-              <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded hover:bg-zinc-200 transition-colors">Unlock</button>
+            <div className="text-center mb-6"><UserIcon size={32} className="mx-auto text-zinc-600 mb-4" /><h2 className="text-xl font-light">Access Portal</h2></div>
+            <form onSubmit={handleAccessCodeSubmit} className="space-y-4">
+              <input type="password" placeholder="Admin Password or Access Code" value={loginInput} onChange={e => setLoginInput(e.target.value)} className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-white focus:border-zinc-500 outline-none text-center tracking-widest transition-colors" autoFocus />
+              <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded hover:bg-zinc-200 transition-colors">Enter</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Others */}
       <PhotoModal photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
       <ChatWidget galleries={galleries} contactInfo={contactInfo} siteContent={siteContent} />
       {showAdminPanel && <AdminPanel currentGalleryId={selectedGalleryId} onCreateGallery={handleCreateGallery} onUploadPhoto={handleAddPhoto} onClose={() => setShowAdminPanel(false)} />}
-      {showAdminSettings && <AdminSettings siteContent={siteContent} contactInfo={contactInfo} messages={messages} onUpdateSiteContent={setSiteContent} onUpdateContactInfo={setContactInfo} onUpdateMessages={setMessages} onClose={() => setShowAdminSettings(false)} />}
+      {showAdminDashboard && <AdminDashboard siteContent={siteContent} contactInfo={contactInfo} messages={messages} users={users} onUpdateSiteContent={setSiteContent} onUpdateContactInfo={setContactInfo} onUpdateMessages={setMessages} onUpdateUsers={setUsers} onClose={() => setShowAdminDashboard(false)} />}
     </div>
   );
 };
