@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Chat } from "@google/genai";
 import { Gallery, ContactInfo, SiteContent } from "../types";
 
@@ -8,28 +9,37 @@ const createSystemInstruction = (galleries: Gallery[], contact: ContactInfo, sit
     return `Gallery "${g.title}" (${g.description}):\n${photoDetails}`;
   }).join('\n\n');
 
+  const servicesContext = siteContent.services.map(s => 
+    `- Service: ${s.title} (${s.priceRange}). Features: ${s.features.join(', ')}`
+  ).join('\n');
+
   const faqContext = siteContent.faqs.map(f => `Q: ${f.question}\nA: ${f.answer}`).join('\n');
   
   return `
-    You are the AI Assistant for "Kars Gallery App", a minimalist photography portfolio.
+    You are the AI Assistant for "Kars Gallery App", a creative platform based in Malaysia.
     
-    Artist Bio: ${contact.bio}
+    App Info: ${contact.bio}
+    Location: Kuala Lumpur, Malaysia.
+    Currency: Malaysian Ringgit (MYR / RM).
     
     Contact Info:
     - Email: ${contact.socials.email}
     - Portfolio: ${contact.socials.portfolio}
     - LinkedIn: ${contact.socials.linkedin}
 
-    Frequently Asked Questions (Reference these):
+    Services Offered:
+    ${servicesContext}
+
+    Frequently Asked Questions:
     ${faqContext}
 
     Current Collections (Galleries):
     ${galleryContext}
 
-    Your goal is to answer visitor questions politely, briefly, and professionally.
-    Adhere to a "mysterious but helpful" tone to match the dark aesthetic.
-    If asked about buying prints, direct them to the email.
-    If asked about downloads, mention that high-resolution versions are available via the download links provided in each gallery.
+    Your goal is to answer visitor questions politely and professionally.
+    You can reply in English or Malay depending on the user's language.
+    If asked about prices, quote the ranges provided in RM.
+    If asked about location, mention Malaysia/KL.
     Keep answers under 80 words.
   `;
 };
@@ -62,7 +72,7 @@ export class GeminiService {
       return result.text || "I remain silent.";
     } catch (error) {
       console.error("Gemini Error:", error);
-      return "The connection to the void is temporarily broken. Please try again later.";
+      return "The connection is temporarily broken. Please try again later.";
     }
   }
 }
