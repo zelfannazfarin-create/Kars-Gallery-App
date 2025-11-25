@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { SiteContent, ContactInfo, FAQItem, ContactMessage, ServiceItem, User, UserRole, Gallery } from '../types';
 import { GeminiService } from '../services/geminiService';
-import { X, Save, Plus, Trash2, LayoutDashboard, Inbox, Download, Edit2, Calendar, LayoutGrid, Users, Link, Key, Shield, Sparkles, Wand2, LogOut, Briefcase, ChevronDown, ChevronUp, Share2, Facebook, Instagram, Twitter, Linkedin } from 'lucide-react';
+import { X, Save, Plus, Trash2, LayoutDashboard, Inbox, Download, Edit2, Calendar, LayoutGrid, Users, Link, Key, Shield, Sparkles, Wand2, LogOut, Briefcase, ChevronDown, ChevronUp, Share2, Facebook, Instagram, Twitter, Linkedin, AlertTriangle } from 'lucide-react';
 
 interface AdminSettingsProps {
   siteContent: SiteContent;
@@ -103,7 +103,14 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
     onUpdateSiteContent(contentForm);
     onUpdateContactInfo(contactForm);
     onUpdateUsers(usersForm);
-    alert("Dashboard changes saved successfully.");
+    alert("Dashboard changes saved successfully to local browser storage.");
+  };
+
+  const handleResetData = () => {
+    if (window.confirm("WARNING: This will delete all your local changes (New Galleries, Settings, Users) and reset to the app defaults. Are you sure?")) {
+      localStorage.clear();
+      window.location.reload();
+    }
   };
 
   // Guest Handler
@@ -241,6 +248,9 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
           </nav>
 
           <div className="mt-auto pt-6 border-t border-zinc-800">
+             <button onClick={handleResetData} className="flex items-center gap-2 text-zinc-500 hover:text-red-400 transition-colors text-sm px-4 mb-4">
+               <AlertTriangle size={16} /> Reset Data
+             </button>
              <button onClick={onClose} className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors text-sm px-4">
                <LogOut size={16} /> Exit Dashboard
              </button>

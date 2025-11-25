@@ -5,17 +5,37 @@ import { Photo, Gallery, UserRole, SiteContent, ContactInfo, ContactMessage, Con
 import PhotoModal from './components/PhotoModal';
 import ChatWidget from './components/ChatWidget';
 import AdminPanel from './components/AdminPanel';
-import AdminDashboard from './components/AdminSettings'; // Now imports the Dashboard logic
+import AdminDashboard from './components/AdminSettings'; 
 import { Lock, LogOut, Linkedin, Globe, Mail, ChevronLeft, User as UserIcon, Trash2, Plus, X, Settings, Download, Send, CheckCircle2, Languages, Camera, Video, PenTool, Calendar, ArrowRight, ShieldCheck, Play, Unlock, LayoutDashboard, Edit, HelpCircle, Instagram, Twitter } from 'lucide-react';
 
 const App: React.FC = () => {
-  // Data State
-  const [galleries, setGalleries] = useState<Gallery[]>(INITIAL_GALLERIES);
-  const [siteContent, setSiteContent] = useState<SiteContent>(INITIAL_SITE_CONTENT);
-  const [contactInfo, setContactInfo] = useState<ContactInfo>(INITIAL_CONTACT_INFO);
-  const [messages, setMessages] = useState<ContactMessage[]>(INITIAL_MESSAGES);
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  // --- Persistence Helper ---
+  // This function loads data from browser storage, or falls back to the INITIAL constants if no data is found.
+  const loadState = <T,>(key: string, fallback: T): T => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : fallback;
+    } catch (e) {
+      console.error("Failed to load state", e);
+      return fallback;
+    }
+  };
+
+  // --- Data State (Now Persistent) ---
+  const [galleries, setGalleries] = useState<Gallery[]>(() => loadState('kars_galleries', INITIAL_GALLERIES));
+  const [siteContent, setSiteContent] = useState<SiteContent>(() => loadState('kars_content', INITIAL_SITE_CONTENT));
+  const [contactInfo, setContactInfo] = useState<ContactInfo>(() => loadState('kars_contact', INITIAL_CONTACT_INFO));
+  const [messages, setMessages] = useState<ContactMessage[]>(() => loadState('kars_messages', INITIAL_MESSAGES));
+  const [users, setUsers] = useState<User[]>(() => loadState('kars_users', INITIAL_USERS));
   
+  // --- Save Effects ---
+  // Whenever these variables change, we save them to the browser immediately.
+  useEffect(() => localStorage.setItem('kars_galleries', JSON.stringify(galleries)), [galleries]);
+  useEffect(() => localStorage.setItem('kars_content', JSON.stringify(siteContent)), [siteContent]);
+  useEffect(() => localStorage.setItem('kars_contact', JSON.stringify(contactInfo)), [contactInfo]);
+  useEffect(() => localStorage.setItem('kars_messages', JSON.stringify(messages)), [messages]);
+  useEffect(() => localStorage.setItem('kars_users', JSON.stringify(users)), [users]);
+
   // Navigation State
   const [selectedGalleryId, setSelectedGalleryId] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
@@ -28,10 +48,10 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdminMode, setIsAdminMode] = useState(false); 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [adminPanelMode, setAdminPanelMode] = useState<'CREATE' | 'EDIT' | 'UPLOAD'>('CREATE'); // New State for Mode
+  const [adminPanelMode, setAdminPanelMode] = useState<'CREATE' | 'EDIT' | 'UPLOAD'>('CREATE'); 
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginInput, setLoginInput] = useState(''); // Serves as password or access code
+  const [loginInput, setLoginInput] = useState(''); 
   const [language, setLanguage] = useState<Language>('en');
 
   // Contact Form State
@@ -193,7 +213,6 @@ const App: React.FC = () => {
            displayedGalleries = galleries.filter(g => g.isPrivate);
          } else {
            // Private visitors only see allowed galleries
-           // If allowedGalleryIds is undefined/empty, show nothing or all? Assumption: Strict mode, show specific.
            const allowedIds = currentUser.allowedGalleryIds || [];
            displayedGalleries = galleries.filter(g => g.isPrivate && allowedIds.includes(g.id));
          }
