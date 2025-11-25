@@ -6,7 +6,7 @@ import PhotoModal from './components/PhotoModal';
 import ChatWidget from './components/ChatWidget';
 import AdminPanel from './components/AdminPanel';
 import AdminDashboard from './components/AdminSettings'; // Now imports the Dashboard logic
-import { Lock, LogOut, Linkedin, Globe, Mail, ChevronLeft, User as UserIcon, Trash2, Plus, X, Settings, Download, Send, CheckCircle2, Languages, Camera, Video, PenTool, Calendar, ArrowRight, ShieldCheck, Play, Unlock, LayoutDashboard } from 'lucide-react';
+import { Lock, LogOut, Linkedin, Globe, Mail, ChevronLeft, User as UserIcon, Trash2, Plus, X, Settings, Download, Send, CheckCircle2, Languages, Camera, Video, PenTool, Calendar, ArrowRight, ShieldCheck, Play, Unlock, LayoutDashboard, Edit, HelpCircle, Instagram, Twitter } from 'lucide-react';
 
 const App: React.FC = () => {
   // Data State
@@ -28,6 +28,7 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdminMode, setIsAdminMode] = useState(false); 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [adminPanelMode, setAdminPanelMode] = useState<'CREATE' | 'EDIT' | 'UPLOAD'>('CREATE'); // New State for Mode
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginInput, setLoginInput] = useState(''); // Serves as password or access code
@@ -97,25 +98,35 @@ const App: React.FC = () => {
     setActiveTab('PUBLIC');
   };
 
+  // Gallery CRUD
   const handleCreateGallery = (newGallery: Gallery) => {
     setGalleries([newGallery, ...galleries]);
+  };
+
+  const handleUpdateGallery = (updatedGallery: Gallery) => {
+    setGalleries(galleries.map(g => g.id === updatedGallery.id ? updatedGallery : g));
   };
 
   const handleDeleteGallery = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (window.confirm("Delete this entire gallery?")) {
       setGalleries(galleries.filter(g => g.id !== id));
+      if (selectedGalleryId === id) setSelectedGalleryId(null);
     }
   };
 
-  const handleAddPhoto = (galleryId: string, newPhoto: Photo) => {
+  const handleAddPhotos = (galleryId: string, newPhotos: Photo[]) => {
     setGalleries(galleries.map(g => {
       if (g.id === galleryId) {
-        if (g.photos.length >= 20) {
-           alert("Gallery limit reached (20 photos). Please remove some to add more.");
-           return g;
+        // Enforce limit of 20
+        if (g.photos.length + newPhotos.length > 20) {
+           alert(`Gallery limit is 20 photos. You can only add ${20 - g.photos.length} more.`);
+           // Add as many as possible
+           const spaceLeft = 20 - g.photos.length;
+           if (spaceLeft <= 0) return g;
+           return { ...g, photos: [...newPhotos.slice(0, spaceLeft), ...g.photos] };
         }
-        return { ...g, photos: [newPhoto, ...g.photos] };
+        return { ...g, photos: [...newPhotos, ...g.photos] };
       }
       return g;
     }));
@@ -163,6 +174,7 @@ const App: React.FC = () => {
       case 'VIDEO': return <Video size={32} />;
       case 'DESIGN': return <PenTool size={32} />;
       case 'EVENT': return <Calendar size={32} />;
+      case 'OTHERS': return <HelpCircle size={32} />;
       default: return <Settings size={32} />;
     }
   };
@@ -174,11 +186,17 @@ const App: React.FC = () => {
     
     if (activeTab === 'PUBLIC') {
       displayedGalleries = galleries.filter(g => !g.isPrivate);
-      // In Admin Mode, show private ones too but maybe dimmed? For now, stick to tab logic for cleanliness.
-      // Actually, if Admin is in PUBLIC tab, they should see PUBLIC galleries.
     } else {
-      if (isPrivateUnlocked) {
-         displayedGalleries = galleries.filter(g => g.isPrivate);
+      if (isPrivateUnlocked && currentUser) {
+         if (currentUser.role === UserRole.ADMIN) {
+           // Admin sees all private galleries
+           displayedGalleries = galleries.filter(g => g.isPrivate);
+         } else {
+           // Private visitors only see allowed galleries
+           // If allowedGalleryIds is undefined/empty, show nothing or all? Assumption: Strict mode, show specific.
+           const allowedIds = currentUser.allowedGalleryIds || [];
+           displayedGalleries = galleries.filter(g => g.isPrivate && allowedIds.includes(g.id));
+         }
       } else {
          displayedGalleries = []; 
       }
@@ -199,7 +217,7 @@ const App: React.FC = () => {
             
             {isAdminMode && (
               <button 
-                onClick={() => setShowAdminPanel(true)}
+                onClick={() => { setAdminPanelMode('CREATE'); setShowAdminPanel(true); }}
                 className="flex items-center gap-2 px-6 py-3 bg-zinc-100 text-black rounded hover:bg-white transition-colors text-sm font-medium"
               >
                 <Plus size={16} /> {t('hero_new_collection')}
@@ -253,7 +271,9 @@ const App: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
             {displayedGalleries.length === 0 ? (
                <div className="col-span-full py-20 text-center text-zinc-600 border border-zinc-900 border-dashed rounded">
-                 No collections found in this section.
+                 {activeTab === 'PRIVATE' && isPrivateUnlocked 
+                   ? "No private galleries linked to this code."
+                   : "No collections found in this section."}
                </div>
             ) : (
               displayedGalleries.map(gallery => (
@@ -330,9 +350,14 @@ const App: React.FC = () => {
                     </a>
                   )}
                   {isAdminMode && (
-                    <button onClick={() => setShowAdminPanel(true)} className="flex items-center gap-2 px-6 py-3 bg-zinc-800 text-white rounded hover:bg-zinc-700 transition-colors text-sm font-medium border border-zinc-700">
-                      <Plus size={18} /> {t('btn_add_photos')}
-                    </button>
+                    <>
+                      <button onClick={() => { setAdminPanelMode('EDIT'); setShowAdminPanel(true); }} className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded hover:bg-zinc-800 transition-colors text-sm font-medium border border-zinc-700">
+                        <Edit size={18} /> Edit Details
+                      </button>
+                      <button onClick={() => { setAdminPanelMode('UPLOAD'); setShowAdminPanel(true); }} className="flex items-center gap-2 px-6 py-3 bg-zinc-800 text-white rounded hover:bg-zinc-700 transition-colors text-sm font-medium border border-zinc-700">
+                        <Plus size={18} /> {t('btn_add_photos')}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -450,6 +475,8 @@ const App: React.FC = () => {
             <a href={`mailto:${contactInfo.socials.email}`} className="hover:text-white transition-colors"><Mail size={20} /></a>
             <a href={contactInfo.socials.portfolio} target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Globe size={20} /></a>
             <a href={contactInfo.socials.linkedin} target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Linkedin size={20} /></a>
+            {contactInfo.socials.instagram && <a href={`https://instagram.com/${contactInfo.socials.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Instagram size={20} /></a>}
+            {contactInfo.socials.twitter && <a href={`https://twitter.com/${contactInfo.socials.twitter.replace('@', '')}`} target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Twitter size={20} /></a>}
           </div>
           <p className="text-xs uppercase tracking-widest opacity-50">{siteContent.footerText} {t('footer_rights')}</p>
         </footer>
@@ -526,6 +553,8 @@ const App: React.FC = () => {
                     <li className="flex items-center gap-3"><Mail size={16} /> {contactInfo.socials.email}</li>
                     <li className="flex items-center gap-3"><Globe size={16} /> <a href={contactInfo.socials.portfolio} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">Portfolio</a></li>
                     <li className="flex items-center gap-3"><Linkedin size={16} /> <a href={contactInfo.socials.linkedin} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">LinkedIn</a></li>
+                    {contactInfo.socials.instagram && <li className="flex items-center gap-3"><Instagram size={16} /> <a href={`https://instagram.com/${contactInfo.socials.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">Instagram</a></li>}
+                    {contactInfo.socials.twitter && <li className="flex items-center gap-3"><Twitter size={16} /> <a href={`https://twitter.com/${contactInfo.socials.twitter.replace('@', '')}`} target="_blank" rel="noreferrer" className="hover:text-white transition-colors">X (Twitter)</a></li>}
                   </ul>
                </div>
              </div>
@@ -570,8 +599,19 @@ const App: React.FC = () => {
 
       <PhotoModal photo={selectedPhoto} onClose={() => setSelectedPhoto(null)} />
       <ChatWidget galleries={galleries} contactInfo={contactInfo} siteContent={siteContent} />
-      {showAdminPanel && <AdminPanel currentGalleryId={selectedGalleryId} onCreateGallery={handleCreateGallery} onUploadPhoto={handleAddPhoto} onClose={() => setShowAdminPanel(false)} />}
-      {showAdminDashboard && <AdminDashboard siteContent={siteContent} contactInfo={contactInfo} messages={messages} users={users} onUpdateSiteContent={setSiteContent} onUpdateContactInfo={setContactInfo} onUpdateMessages={setMessages} onUpdateUsers={setUsers} onClose={() => setShowAdminDashboard(false)} />}
+      
+      {showAdminPanel && (
+        <AdminPanel 
+          mode={adminPanelMode}
+          currentGallery={currentGallery}
+          onUploadPhotos={handleAddPhotos}
+          onCreateGallery={handleCreateGallery} 
+          onUpdateGallery={handleUpdateGallery}
+          onClose={() => setShowAdminPanel(false)} 
+        />
+      )}
+      
+      {showAdminDashboard && <AdminDashboard siteContent={siteContent} contactInfo={contactInfo} messages={messages} users={users} galleries={galleries} onUpdateSiteContent={setSiteContent} onUpdateContactInfo={setContactInfo} onUpdateMessages={setMessages} onUpdateUsers={setUsers} onClose={() => setShowAdminDashboard(false)} />}
     </div>
   );
 };

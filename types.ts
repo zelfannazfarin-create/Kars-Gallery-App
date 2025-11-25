@@ -12,6 +12,7 @@ export interface User {
   label: string; // e.g. "Admin", "Wedding Guest", "Client A"
   password?: string; // The Access Code
   role: UserRole;
+  allowedGalleryIds?: string[]; // IDs of private galleries this user can access
 }
 
 export interface Photo {
@@ -48,6 +49,8 @@ export interface SocialLinks {
   portfolio: string; 
   linkedin: string;  
   email: string;
+  instagram?: string;
+  twitter?: string;
 }
 
 export interface ContactInfo {
@@ -67,7 +70,7 @@ export interface ServiceItem {
   description: string;
   priceRange: string;
   features: string[];
-  icon: 'CAMERA' | 'VIDEO' | 'DESIGN' | 'EVENT';
+  icon: 'CAMERA' | 'VIDEO' | 'DESIGN' | 'EVENT' | 'OTHERS';
 }
 
 export interface SiteContent {

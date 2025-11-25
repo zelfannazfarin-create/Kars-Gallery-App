@@ -1,14 +1,15 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { SiteContent, ContactInfo, FAQItem, ContactMessage, ServiceItem, User, UserRole } from '../types';
+import { SiteContent, ContactInfo, FAQItem, ContactMessage, ServiceItem, User, UserRole, Gallery } from '../types';
 import { GeminiService } from '../services/geminiService';
-import { X, Save, Plus, Trash2, LayoutDashboard, Inbox, Download, Edit2, Calendar, LayoutGrid, Users, Link, Key, Shield, Sparkles, Wand2, LogOut, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Save, Plus, Trash2, LayoutDashboard, Inbox, Download, Edit2, Calendar, LayoutGrid, Users, Link, Key, Shield, Sparkles, Wand2, LogOut, Briefcase, ChevronDown, ChevronUp, Share2, Facebook, Instagram, Twitter, Linkedin } from 'lucide-react';
 
 interface AdminSettingsProps {
   siteContent: SiteContent;
   contactInfo: ContactInfo;
   messages: ContactMessage[];
   users: User[];
+  galleries: Gallery[]; // Added galleries prop
   onUpdateSiteContent: (content: SiteContent) => void;
   onUpdateContactInfo: (info: ContactInfo) => void;
   onUpdateMessages: (messages: ContactMessage[]) => void;
@@ -21,13 +22,14 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
   contactInfo, 
   messages,
   users,
+  galleries,
   onUpdateSiteContent, 
   onUpdateContactInfo, 
   onUpdateMessages,
   onUpdateUsers,
   onClose 
 }) => {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'INBOX' | 'GUESTS' | 'ADMINS' | 'CONTENT' | 'SERVICES' | 'FAQ'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'INBOX' | 'GUESTS' | 'ADMINS' | 'CONTENT' | 'SOCIALS' | 'SERVICES' | 'FAQ'>('OVERVIEW');
   
   // Data Forms
   const [contentForm, setContentForm] = useState(siteContent);
@@ -43,11 +45,14 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   // User Creation State
-  const [newGuest, setNewGuest] = useState({ label: '', code: '' });
+  const [newGuest, setNewGuest] = useState({ label: '', code: '', galleryId: '' });
   const [newAdmin, setNewAdmin] = useState({ label: '', username: '', password: '' });
 
   // AI Service
   const gemini = useMemo(() => new GeminiService(), []);
+
+  // Filter for private galleries for the dropdown
+  const privateGalleries = useMemo(() => galleries.filter(g => g.isPrivate), [galleries]);
 
   // --- AI Insights ---
   useEffect(() => {
@@ -103,15 +108,16 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
 
   // Guest Handler
   const handleAddGuest = () => {
-    if (!newGuest.label || !newGuest.code) return;
+    if (!newGuest.label || !newGuest.code || !newGuest.galleryId) return;
     const u: User = {
       id: Date.now().toString(),
       label: newGuest.label,
       password: newGuest.code,
-      role: UserRole.PRIVATE_VISITOR
+      role: UserRole.PRIVATE_VISITOR,
+      allowedGalleryIds: [newGuest.galleryId] // Link the code to the specific gallery
     };
     setUsersForm([...usersForm, u]);
-    setNewGuest({ label: '', code: '' });
+    setNewGuest({ label: '', code: '', galleryId: '' });
   };
 
   // Admin Handler
@@ -216,7 +222,7 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
         <div className="w-64 bg-zinc-900 border-r border-zinc-800 p-6 flex flex-col hidden md:flex">
           <div className="mb-8 px-2">
             <h2 className="text-xl font-bold text-white tracking-wider">DASHBOARD</h2>
-            <p className="text-xs text-zinc-500 mt-1">v2.0 • Admin Control</p>
+            <p className="text-xs text-zinc-500 mt-1">v2.1 • Admin Control</p>
           </div>
           
           <nav className="space-y-1 flex-1">
@@ -229,6 +235,7 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
             <div className="my-4 border-t border-zinc-800" />
             <p className="text-[10px] uppercase text-zinc-600 font-bold px-4 mb-2">Content</p>
             <SidebarItem id="CONTENT" label="App Content" icon={Edit2} />
+            <SidebarItem id="SOCIALS" label="Socials" icon={Share2} />
             <SidebarItem id="SERVICES" label="Services" icon={Briefcase} />
             <SidebarItem id="FAQ" label="FAQs" icon={LayoutGrid} />
           </nav>
@@ -355,20 +362,42 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
             {activeTab === 'GUESTS' && (
               <div className="space-y-8 max-w-4xl">
                  <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
-                    <h4 className="text-white font-medium mb-4 flex items-center gap-2"><Key size={18} /> Create New VIP Access</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <input 
-                        type="text" placeholder="Guest Label (e.g. Wedding Client)" 
-                        value={newGuest.label} onChange={e => setNewGuest({...newGuest, label: e.target.value})}
-                        className="bg-black border border-zinc-800 rounded px-4 py-2 text-sm text-white focus:border-zinc-600 outline-none"
-                      />
-                      <input 
-                        type="text" placeholder="Access Code (e.g. WED2024)" 
-                        value={newGuest.code} onChange={e => setNewGuest({...newGuest, code: e.target.value})}
-                        className="bg-black border border-zinc-800 rounded px-4 py-2 text-sm text-white focus:border-zinc-600 outline-none font-mono"
-                      />
-                      <button onClick={handleAddGuest} disabled={!newGuest.label || !newGuest.code} className="bg-white text-black font-medium rounded px-4 py-2 text-sm hover:bg-zinc-200 disabled:opacity-50">
-                         Generate Code
+                    <h4 className="text-white font-medium mb-4 flex items-center gap-2"><Key size={18} /> Create New Gallery Access</h4>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold">Label</label>
+                          <input 
+                            type="text" placeholder="e.g. Wedding Client" 
+                            value={newGuest.label} onChange={e => setNewGuest({...newGuest, label: e.target.value})}
+                            className="w-full bg-black border border-zinc-800 rounded px-4 py-2 text-sm text-white focus:border-zinc-600 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold">Access Code</label>
+                          <input 
+                            type="text" placeholder="e.g. WED2024" 
+                            value={newGuest.code} onChange={e => setNewGuest({...newGuest, code: e.target.value})}
+                            className="w-full bg-black border border-zinc-800 rounded px-4 py-2 text-sm text-white focus:border-zinc-600 outline-none font-mono"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold">Link to Private Gallery</label>
+                          <select 
+                            value={newGuest.galleryId} 
+                            onChange={e => setNewGuest({...newGuest, galleryId: e.target.value})}
+                            className="w-full bg-black border border-zinc-800 rounded px-4 py-2 text-sm text-white focus:border-zinc-600 outline-none"
+                          >
+                             <option value="">-- Select a Private Gallery --</option>
+                             {privateGalleries.length === 0 && <option disabled>No private galleries available</option>}
+                             {privateGalleries.map(g => (
+                               <option key={g.id} value={g.id}>{g.title}</option>
+                             ))}
+                          </select>
+                      </div>
+                      <button onClick={handleAddGuest} disabled={!newGuest.label || !newGuest.code || !newGuest.galleryId} className="w-full bg-white text-black font-medium rounded px-4 py-3 text-sm hover:bg-zinc-200 disabled:opacity-50 mt-2">
+                         Generate Access Code
                       </button>
                     </div>
                  </div>
@@ -376,20 +405,29 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
                  <div>
                    <h4 className="text-zinc-500 text-sm uppercase font-bold mb-4 px-1">Active Guest Codes</h4>
                    <div className="grid gap-3">
-                     {usersForm.filter(u => u.role === UserRole.PRIVATE_VISITOR).map(u => (
-                       <div key={u.id} className="flex items-center justify-between p-4 bg-zinc-900/50 border border-zinc-800 rounded-lg">
-                          <div>
-                            <p className="text-white font-medium">{u.label}</p>
-                            <p className="text-xs text-zinc-500 font-mono mt-1 bg-zinc-950 inline-block px-2 py-1 rounded">{u.password}</p>
-                          </div>
-                          <div className="flex gap-2">
-                             <button onClick={() => copyAccessLink(u.password || '')} className="text-xs flex items-center gap-1 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors">
-                               <Link size={12} /> Copy Link
-                             </button>
-                             <button onClick={() => handleRemoveUser(u.id)} className="p-2 text-zinc-600 hover:text-red-400 transition-colors"><Trash2 size={16} /></button>
-                          </div>
-                       </div>
-                     ))}
+                     {usersForm.filter(u => u.role === UserRole.PRIVATE_VISITOR).map(u => {
+                       const linkedGallery = galleries.find(g => u.allowedGalleryIds?.includes(g.id));
+                       return (
+                        <div key={u.id} className="flex items-center justify-between p-4 bg-zinc-900/50 border border-zinc-800 rounded-lg">
+                            <div>
+                              <p className="text-white font-medium">{u.label}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-zinc-500 font-mono bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">{u.password}</span>
+                                <span className="text-[10px] text-zinc-600">linked to: {linkedGallery?.title || 'Unknown Gallery'}</span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => copyAccessLink(u.password || '')} className="text-xs flex items-center gap-1 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors">
+                                <Link size={12} /> Copy Link
+                              </button>
+                              <button onClick={() => handleRemoveUser(u.id)} className="p-2 text-zinc-600 hover:text-red-400 transition-colors"><Trash2 size={16} /></button>
+                            </div>
+                        </div>
+                       );
+                     })}
+                     {usersForm.filter(u => u.role === UserRole.PRIVATE_VISITOR).length === 0 && (
+                       <p className="text-zinc-600 text-sm italic">No active guest codes.</p>
+                     )}
                    </div>
                  </div>
               </div>
@@ -464,12 +502,38 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
                 </div>
 
                 <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800">
-                   <h4 className="text-white font-medium mb-4">Footer & Contact</h4>
-                   <div className="space-y-4">
-                      <input placeholder="Footer Text" value={contentForm.footerText} onChange={e => setContentForm({...contentForm, footerText: e.target.value})} className="w-full bg-black border border-zinc-800 rounded px-4 py-2 text-white focus:border-zinc-600 outline-none" />
+                   <h4 className="text-white font-medium mb-4">Footer Text</h4>
+                   <input placeholder="Footer Text" value={contentForm.footerText} onChange={e => setContentForm({...contentForm, footerText: e.target.value})} className="w-full bg-black border border-zinc-800 rounded px-4 py-2 text-white focus:border-zinc-600 outline-none" />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'SOCIALS' && (
+              <div className="space-y-6 max-w-3xl">
+                <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800">
+                   <h4 className="text-white font-medium mb-6">Social Media & Links</h4>
+                   <div className="space-y-6">
+                      <div className="space-y-1">
+                         <label className="text-[10px] uppercase text-zinc-500 font-bold flex items-center gap-2"><Briefcase size={12} /> Public Email</label>
+                         <input placeholder="Email Address" value={contactForm.socials.email} onChange={e => setContactForm({...contactForm, socials: {...contactForm.socials, email: e.target.value}})} className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-white focus:border-zinc-600 outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                         <label className="text-[10px] uppercase text-zinc-500 font-bold flex items-center gap-2"><Link size={12} /> Portfolio Website</label>
+                         <input placeholder="https://" value={contactForm.socials.portfolio} onChange={e => setContactForm({...contactForm, socials: {...contactForm.socials, portfolio: e.target.value}})} className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-white focus:border-zinc-600 outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                         <label className="text-[10px] uppercase text-zinc-500 font-bold flex items-center gap-2"><Linkedin size={12} /> LinkedIn Profile</label>
+                         <input placeholder="https://" value={contactForm.socials.linkedin} onChange={e => setContactForm({...contactForm, socials: {...contactForm.socials, linkedin: e.target.value}})} className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-white focus:border-zinc-600 outline-none" />
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <input placeholder="Email" value={contactForm.socials.email} onChange={e => setContactForm({...contactForm, socials: {...contactForm.socials, email: e.target.value}})} className="w-full bg-black border border-zinc-800 rounded px-4 py-2 text-white focus:border-zinc-600 outline-none" />
-                        <input placeholder="Portfolio URL" value={contactForm.socials.portfolio} onChange={e => setContactForm({...contactForm, socials: {...contactForm.socials, portfolio: e.target.value}})} className="w-full bg-black border border-zinc-800 rounded px-4 py-2 text-white focus:border-zinc-600 outline-none" />
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold flex items-center gap-2"><Instagram size={12} /> Instagram Handle</label>
+                          <input placeholder="@username" value={contactForm.socials.instagram || ''} onChange={e => setContactForm({...contactForm, socials: {...contactForm.socials, instagram: e.target.value}})} className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-white focus:border-zinc-600 outline-none" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold flex items-center gap-2"><Twitter size={12} /> X (Twitter)</label>
+                          <input placeholder="@username" value={contactForm.socials.twitter || ''} onChange={e => setContactForm({...contactForm, socials: {...contactForm.socials, twitter: e.target.value}})} className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-white focus:border-zinc-600 outline-none" />
+                        </div>
                       </div>
                    </div>
                 </div>
@@ -498,6 +562,7 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
                           <option value="VIDEO">Video</option>
                           <option value="DESIGN">Design</option>
                           <option value="EVENT">Event</option>
+                          <option value="OTHERS">Others</option>
                         </select>
                         <button onClick={() => handleRemoveService(index)} className="text-zinc-600 hover:text-red-500"><Trash2 size={16}/></button>
                       </div>
@@ -579,7 +644,7 @@ const AdminDashboard: React.FC<AdminSettingsProps> = ({
 
           {/* Privacy Footer */}
           <div className="h-10 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between px-8 text-[10px] text-zinc-600 uppercase tracking-wider">
-             <span>Admin Dashboard v2.0</span>
+             <span>Admin Dashboard v2.1</span>
              <span className="flex items-center gap-1"><Shield size={10} /> Data protected under PDPA (Malaysia)</span>
           </div>
 

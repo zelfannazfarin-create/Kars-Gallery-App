@@ -89,7 +89,8 @@ export const INITIAL_USERS: User[] = [
     id: 'vip1',
     label: 'VIP Guest 2024',
     password: 'vip2024',
-    role: UserRole.PRIVATE_VISITOR
+    role: UserRole.PRIVATE_VISITOR,
+    allowedGalleryIds: ['g2'] // Specifically linked to the Private Wedding gallery
   }
 ];
 
@@ -97,7 +98,9 @@ export const INITIAL_CONTACT_INFO: ContactInfo = {
   socials: {
     email: "hello@karsgallery.my",
     portfolio: "https://kars-creative.my",
-    linkedin: "https://linkedin.com/in/kars-gallery"
+    linkedin: "https://linkedin.com/in/kars-gallery",
+    instagram: "@karsgallery",
+    twitter: "@kars_gallery"
   },
   bio: "A digital platform based in Kuala Lumpur, showcasing the intersection of brutalist architecture and Malaysian nature. We provide a space for visual storytelling and creative services."
 };
