@@ -29,6 +29,7 @@ export const TRANSLATIONS = {
     form_sent_desc: "Thank you. We will respond shortly.",
     services_title: "Our Services",
     services_subtitle: "Professional creative solutions tailored for you.",
+    services_click_note: "Click on any package below to make an inquiry.",
     footer_rights: "All Rights Reserved."
   },
   ms: {
@@ -58,6 +59,7 @@ export const TRANSLATIONS = {
     form_sent_desc: "Terima kasih. Kami akan balas secepat mungkin.",
     services_title: "Perkhidmatan Kami",
     services_subtitle: "Solusi kreatif profesional khusus untuk anda.",
+    services_click_note: "Klik pada mana-mana pakej di bawah untuk bertanya.",
     footer_rights: "Hak Cipta Terpelihara."
   }
 };

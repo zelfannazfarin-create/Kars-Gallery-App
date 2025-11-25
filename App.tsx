@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
 import { INITIAL_GALLERIES, INITIAL_CONTACT_INFO, INITIAL_SITE_CONTENT, INITIAL_MESSAGES, TRANSLATIONS } from './constants';
-import { Photo, Gallery, UserRole, SiteContent, ContactInfo, ContactMessage, ContactReason, Language } from './types';
+import { Photo, Gallery, UserRole, SiteContent, ContactInfo, ContactMessage, ContactReason, Language, ServiceItem } from './types';
 import PhotoModal from './components/PhotoModal';
 import ChatWidget from './components/ChatWidget';
 import AdminPanel from './components/AdminPanel';
 import AdminSettings from './components/AdminSettings';
-import { Lock, LogOut, Linkedin, Globe, Mail, ChevronLeft, User, ToggleRight, ToggleLeft, Trash2, Plus, X, Settings, Download, Send, CheckCircle2, Languages, Camera, Video, PenTool, Calendar } from 'lucide-react';
+import { Lock, LogOut, Linkedin, Globe, Mail, ChevronLeft, User, ToggleRight, ToggleLeft, Trash2, Plus, X, Settings, Download, Send, CheckCircle2, Languages, Camera, Video, PenTool, Calendar, ArrowRight } from 'lucide-react';
 
 const App: React.FC = () => {
   // Data State
@@ -94,6 +94,16 @@ const App: React.FC = () => {
         photos: g.photos.filter(p => p.id !== photoId)
       })));
     }
+  };
+
+  const handleServiceClick = (service: ServiceItem) => {
+    setShowServicesModal(false);
+    setContactForm({
+      ...contactForm,
+      reason: 'Commission Request',
+      message: `I am interested in the ${service.title} package (${service.priceRange}).\n\nIs it available for...`
+    });
+    setShowAboutModal(true);
   };
 
   const handleContactSubmit = (e: React.FormEvent) => {
@@ -306,16 +316,25 @@ const App: React.FC = () => {
           <button onClick={() => setShowServicesModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white z-50"><X size={32} /></button>
           
           <div className="max-w-6xl w-full h-[85vh] flex flex-col">
-            <div className="text-center mb-12">
+            <div className="text-center mb-8">
               <h2 className="text-4xl md:text-6xl font-semibold text-white tracking-tight mb-4">{t('services_title')}</h2>
-              <p className="text-xl text-zinc-400">{t('services_subtitle')}</p>
+              <p className="text-xl text-zinc-400 mb-6">{t('services_subtitle')}</p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800/50 rounded-full border border-zinc-700 text-sm text-zinc-300">
+                <Settings size={14} className="animate-pulse" />
+                {t('services_click_note')}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 flex-1 overflow-y-auto px-4 pb-12">
               {siteContent.services.map((service, idx) => (
-                 <div key={service.id} className="group relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 flex flex-col hover:bg-zinc-800 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-zinc-700">
-                    <div className="mb-6 text-zinc-400 group-hover:text-white transition-colors">
+                 <div 
+                   key={service.id} 
+                   onClick={() => handleServiceClick(service)}
+                   className="group relative bg-zinc-900 border border-zinc-800 rounded-3xl p-8 flex flex-col hover:bg-zinc-800 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-zinc-700 cursor-pointer"
+                 >
+                    <div className="mb-6 text-zinc-400 group-hover:text-white transition-colors flex justify-between items-start">
                       {getServiceIcon(service.icon)}
+                      <ArrowRight size={20} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
                     </div>
                     <h3 className="text-2xl font-semibold text-white mb-2">{service.title}</h3>
                     <p className="text-sm text-zinc-400 mb-8 leading-relaxed">{service.description}</p>
@@ -336,14 +355,8 @@ const App: React.FC = () => {
               ))}
             </div>
             
-            <div className="text-center pb-8">
-              <button 
-                onClick={() => { setShowServicesModal(false); setShowAboutModal(true); }}
-                className="bg-white text-black px-8 py-4 rounded-full font-medium hover:bg-zinc-200 transition-colors"
-              >
-                Contact for Quote
-              </button>
-            </div>
+            {/* Removed bottom button as requested */}
+            <div className="h-8"></div> 
           </div>
         </div>
       )}
